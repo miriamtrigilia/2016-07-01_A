@@ -11,6 +11,7 @@ import java.util.List;
 import it.polito.tdp.formulaone.model.Circuit;
 import it.polito.tdp.formulaone.model.Constructor;
 import it.polito.tdp.formulaone.model.Driver;
+import it.polito.tdp.formulaone.model.DriverSeasonResult;
 import it.polito.tdp.formulaone.model.Season;
 
 
@@ -113,11 +114,12 @@ public class FormulaOneDAO {
 		}
 	}
 
-	public List<Driver> getAllDriversBySeason(Season s) {
+	public List<Driver> getAllDriversBySeason(Season s, DriverIdMap driverIdMap) {
 		
 		String sql = "Select DISTINCT drivers.driverId, forename, surname\n" + 
 				"from drivers, races, results\n" + 
 				"where races.year = ?\n" + 
+				"and results.position is not null\n" + 
 				"and results.raceId = races.raceId\n" + 
 				"and results.driverId = drivers.driverId";
 
@@ -129,11 +131,51 @@ public class FormulaOneDAO {
 
 			List<Driver> drivers = new ArrayList<>();
 			while (rs.next()) {
-				drivers.add(new Driver(rs.getInt("driverId"), rs.getString("forename"), rs.getString("surname")));
+				drivers.add(driverIdMap.get(new Driver(rs.getInt("driverId"), rs.getString("forename"), rs.getString("surname"))));
 			}
 
 			conn.close();
 			return drivers;
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new RuntimeException("SQL Query Error");
+		}
+	}
+
+	public List<DriverSeasonResult> getDriverSeasonResults(Season s, DriverIdMap driverIdMap) {
+		String sql = "select r1.raceId, r2.raceId, r1.driverId as d1, r2.driverId as d2, count(*) as cnt\n" + 
+				"from results as r1, results as r2, races\n" + 
+				"where r1.raceId = r2.raceId\n" + 
+				"and races.raceId = r1.raceId\n" + 
+				"and races.year = ?\n" + 
+				"and r1.position is not null\n" + 
+				"and r2.position is not null\n" + 
+				"and r1.position < r2.position\n" + 
+				"group by d1, d2";
+
+		try {
+			Connection conn = ConnectDB.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1, s.getYear());
+			ResultSet rs = st.executeQuery();
+
+			List<DriverSeasonResult> result = new ArrayList<>();
+			while (rs.next()) {
+				Driver d1 = driverIdMap.get(rs.getInt("d1"));
+				Driver d2 = driverIdMap.get(rs.getInt("d2"));
+				int cnt = rs.getInt("cnt");
+				
+				if(d1 == null || d2 == null) {
+					// non posso aggiungere l'arco altrimenti eccezione
+					System.err.format("Skipping %d %d",d1, d2);
+				}else {
+					result.add(new DriverSeasonResult(d1,d2,cnt));
+				}
+				
+			}
+
+			conn.close();
+			return result;
 		} catch (SQLException e) {
 			e.printStackTrace();
 			throw new RuntimeException("SQL Query Error");

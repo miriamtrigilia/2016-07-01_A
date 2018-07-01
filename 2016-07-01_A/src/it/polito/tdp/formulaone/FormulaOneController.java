@@ -1,8 +1,10 @@
 package it.polito.tdp.formulaone;
 
 import java.net.URL;
+import java.util.List;
 import java.util.ResourceBundle;
 
+import it.polito.tdp.formulaone.model.Driver;
 import it.polito.tdp.formulaone.model.Model;
 import it.polito.tdp.formulaone.model.Season;
 import javafx.event.ActionEvent;
@@ -42,6 +44,8 @@ public class FormulaOneController {
 			}
 			
 			model.creaGrafo(s);
+			Driver d = this.model.getBestDriver();
+			this.txtResult.appendText("Migliore pilota "+d+"\n");
 			
 		} catch(RuntimeException e) {
 			e.printStackTrace();
@@ -52,6 +56,23 @@ public class FormulaOneController {
 
 	@FXML
 	void doTrovaDreamTeam(ActionEvent event) {
+		try {
+			try {
+				int k = Integer.parseInt(this.textInputK.getText());
+				if(k <= 0) {
+					this.txtResult.setText("Inserire k >0");
+					return;
+				}
+			List<Driver> drivers = this.model.getDreamTeam(k);
+			this.txtResult.setText(drivers.toString());
+			} catch(NumberFormatException e) {
+				return;
+			}
+		} catch(RuntimeException e) {
+			e.printStackTrace();
+			System.out.println("Errorre di connessione al DB");
+			txtResult.setText("Errore di connessine al DB!");
+		}
 
 	}
 
